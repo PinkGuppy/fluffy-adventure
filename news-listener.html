@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#121821">
-<title>뉴스 리스너</title>
+<title>영어 리스너</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
@@ -117,6 +117,24 @@ dialog label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var
 dialog small{font-size:12px;color:var(--muted);line-height:1.5}
 dialog .chk{flex-direction:row;align-items:flex-start;gap:10px;color:var(--fg)}
 dialog .chk input{margin-top:4px}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--bg);border-radius:8px;margin-bottom:14px}
+.tab{flex:1;border:0;background:none;padding:8px;border-radius:6px;font-weight:500;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.pane{display:flex;flex-direction:column;gap:12px}
+.start .pane h1{margin:0}
+.start .pane p{margin:0}
+label.full{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:none;border-radius:999px;padding:6px 12px;font-size:13px}
+.results{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.results button{width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.results b{font:600 15px/1.35 var(--f-en)}
+.results span{font-size:12px;color:var(--muted)}
+.results .muted{color:var(--muted);font-size:13px}
+.filebtn{position:relative;display:block;text-align:center;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:14px;font-weight:700;cursor:pointer}
+.filebtn input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.startmsg{font-size:13px;color:var(--muted);min-height:1.2em;margin-top:10px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:calc(100% - 32px);z-index:9;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 </style>
@@ -124,35 +142,63 @@ dialog .chk input{margin-top:4px}
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><span class="onair"><i></i><span id="airLabel">Standby</span></span> News Listener</div>
-    <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="ghost" id="btnDate" type="button" hidden>날짜 변경</button><button class="ghost" id="btnSettings" type="button">설정</button></div>
+    <div class="brand"><span class="onair"><i></i><span id="airLabel">Standby</span></span> English Listener</div>
+    <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="ghost" id="btnDate" type="button" hidden>다른 글 고르기</button><button class="ghost" id="btnSettings" type="button">설정</button></div>
   </header>
 
   <section class="card start" id="startCard">
-    <h1>어느 날 뉴스를 들을까요?</h1>
-    <p>The Guardian 기사를 한 문장씩 영어로 읽고 한국어 번역을 이어서 읽어 줍니다. 멈출 때까지 다음 기사로 계속 넘어갑니다.</p>
-    <div class="row">
-      <label for="inDate">날짜<input type="date" id="inDate"></label>
-      <label for="inSection">분야
-        <select id="inSection">
-          <option value="">전체</option>
-          <option value="world">World 국제</option>
-          <option value="us-news">US 미국</option>
-          <option value="uk-news">UK 영국</option>
-          <option value="business">Business 경제</option>
-          <option value="technology">Technology 기술</option>
-          <option value="science">Science 과학</option>
-          <option value="environment">Environment 환경</option>
-          <option value="sport">Sport 스포츠</option>
-          <option value="culture">Culture 문화</option>
-          <option value="lifeandstyle">Life & style 생활</option>
-        </select>
-      </label>
+    <div class="tabs" role="tablist" aria-label="읽을 거리">
+      <button type="button" role="tab" class="tab" data-tab="news" aria-selected="true">뉴스</button>
+      <button type="button" role="tab" class="tab" data-tab="book" aria-selected="false">책</button>
+      <button type="button" role="tab" class="tab" data-tab="file" aria-selected="false">내 파일</button>
     </div>
-    <div class="actions">
-      <button class="primary" id="btnStart" type="button">듣기 시작</button>
-      <button class="secondary" id="btnResume" type="button" hidden>이어 듣기</button>
+
+    <div class="pane" id="paneNews">
+      <h1>어떤 뉴스를 들을까요?</h1>
+      <p>한 문장씩 영어로 읽고 한국어 번역을 이어서 읽어 줍니다. 멈출 때까지 다음 기사로 넘어갑니다.</p>
+      <label class="full" for="inSource">출처<select id="inSource"></select></label>
+      <div class="row" id="guardianOpts">
+        <label for="inDate">날짜<input type="date" id="inDate"></label>
+        <label for="inSection">분야
+          <select id="inSection">
+            <option value="">전체</option>
+            <option value="world">World 국제</option>
+            <option value="us-news">US 미국</option>
+            <option value="uk-news">UK 영국</option>
+            <option value="business">Business 경제</option>
+            <option value="technology">Technology 기술</option>
+            <option value="science">Science 과학</option>
+            <option value="environment">Environment 환경</option>
+            <option value="sport">Sport 스포츠</option>
+            <option value="culture">Culture 문화</option>
+            <option value="lifeandstyle">Life &amp; style 생활</option>
+          </select>
+        </label>
+      </div>
+      <label class="full" for="inCustom" id="customWrap" hidden>RSS 주소<input type="text" id="inCustom" placeholder="https://example.com/rss.xml" autocomplete="off"></label>
+      <p class="note" id="srcNote"></p>
+      <div class="actions"><button class="primary" id="btnStart" type="button">듣기 시작</button></div>
     </div>
+
+    <div class="pane" id="paneBook" hidden>
+      <h1>어떤 책을 읽을까요?</h1>
+      <p>Project Gutenberg의 저작권이 끝난 영어 책입니다. 장 단위로 읽고 "다음 장"으로 넘어갑니다. 쉬운 책부터 순서대로 놓았습니다.</p>
+      <div class="chips" id="chips"></div>
+      <form class="ask" id="bookForm">
+        <input type="text" id="bookQ" placeholder="제목이나 작가를 영어로" autocomplete="off">
+        <button type="submit">검색</button>
+      </form>
+      <ul class="results" id="bookResults"></ul>
+    </div>
+
+    <div class="pane" id="paneFile" hidden>
+      <h1>내 책 파일 읽기</h1>
+      <p>휴대폰에 있는 .txt나 .epub 영어 책을 고르세요. 파일은 이 폰에만 보관되고, 번역할 문장만 번역 서비스로 보냅니다.</p>
+      <label class="filebtn" for="inFile" id="fileLabel">파일 고르기<input type="file" id="inFile" accept=".txt,.epub,text/plain,application/epub+zip"></label>
+    </div>
+
+    <div class="startmsg" id="startMsg"></div>
+    <div class="actions"><button class="secondary" id="btnResume" type="button" hidden>이어 듣기</button></div>
   </section>
 
   <section class="card now" id="nowCard" hidden>
@@ -165,13 +211,13 @@ dialog .chk input{margin-top:4px}
   </section>
 
   <details class="card" id="trCard" hidden>
-    <summary>기사 전체 문장 (눌러서 이동)</summary>
+    <summary>전체 문장 (눌러서 이동)</summary>
     <ol class="tr" id="tr"></ol>
   </details>
 
   <section class="card qa">
     <h2>질문 · 답변</h2>
-    <div class="heard" id="heard">마이크를 누르고 말하세요. "다음 뉴스", "다시", "멈춰", "계속", "천천히"는 명령으로 처리합니다.</div>
+    <div class="heard" id="heard">마이크를 누르고 말하세요. "다음 뉴스(다음 장)", "다시", "멈춰", "계속", "천천히"는 명령으로 처리합니다.</div>
     <div class="log" id="log"></div>
     <form class="ask" id="askForm">
       <input type="text" id="askIn" placeholder="글자로 질문하기" autocomplete="off">
@@ -186,7 +232,7 @@ dialog .chk input{margin-top:4px}
     <button type="button" id="btnPlay" aria-label="재생"><svg viewBox="0 0 24 24" id="icoPlay"><path d="M8 5v14l11-7z"/></svg><span id="playLabel">재생</span></button>
     <button type="button" class="mic" id="btnMic" aria-label="음성 질문"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg></button>
     <button type="button" id="btnNext" aria-label="다음 문장"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>다음 문장</button>
-    <button type="button" id="btnNextArt" aria-label="다음 뉴스"><svg viewBox="0 0 24 24"><path d="M4 18l7-6-7-6zm9 0 7-6-7-6z"/></svg>다음 뉴스</button>
+    <button type="button" id="btnNextArt" aria-label="다음 뉴스"><svg viewBox="0 0 24 24"><path d="M4 18l7-6-7-6zm9 0 7-6-7-6z"/></svg><span id="nextArtLabel">다음 뉴스</span></button>
   </div>
 </nav>
 
@@ -225,6 +271,13 @@ dialog .chk input{margin-top:4px}
       <input type="text" id="sGuardian" autocomplete="off">
       <small>"test"로도 동작하지만 요청 수 제한이 큽니다. open-platform.theguardian.com에서 무료 키를 받아 넣으세요.</small>
     </label>
+    <label for="sProxy">중계 서버 주소
+      <input type="text" id="sProxy" placeholder="https://이름.계정.workers.dev" autocomplete="off">
+      <small>BBC·NPR 같은 다른 뉴스와 책을 가져올 때 필요합니다. Guardian과 내 파일은 없어도 됩니다.</small>
+    </label>
+    <label for="sProxyToken">중계 서버 암호
+      <input type="password" id="sProxyToken" autocomplete="off">
+    </label>
     <label for="sVoice">영어 목소리<select id="sVoice"></select></label>
     <label for="sRate">읽기 속도 <span id="rateVal"></span>
       <input type="range" id="sRate" min="0.6" max="1.3" step="0.05">
@@ -251,12 +304,18 @@ const cfg = Object.assign({
   trProvider:'google', qaProvider:'gemini',
   geminiKey:'', geminiModel:'gemini-3.8-flash',
   claudeKey:'', model:'claude-haiku-5-5', guardianKey:'test',
+  proxyUrl:'', proxyToken:'', customRss:'',
   enVoice:'', rate:0.95, readKo:true, handsFree:false
 }, LS.get('nl.cfg', {}));
+// 내 중계 서버 기본값 (설정에서 비워 두면 이 값을 씀)
+const DEFAULT_PROXY = 'https://listener.tkddnr1021.workers.dev', DEFAULT_TOKEN = 'rkX8z2CLFtjA97nu';
+if (!cfg.proxyUrl) cfg.proxyUrl = DEFAULT_PROXY;
+if (!cfg.proxyToken) cfg.proxyToken = DEFAULT_TOKEN;
 const saveCfg = () => LS.set('nl.cfg', cfg);
 
 /* ---------- 상태 ---------- */
 const st = {
+  mode:'guardian', src:'guardian', feedUrl:'', doc:null,
   date:'', section:'', page:1, pages:1,
   articles:[], aIdx:0, sIdx:0,
   playing:false, resumeAfter:false
@@ -366,8 +425,8 @@ function parseCommand(t){
   const s = t.replace(/\s/g,'').toLowerCase();
   if (s.length > 14) return null;            // 긴 말은 질문으로 처리
   if (/뭐|뜻|무슨|왜|어떻게|알려|설명|무엇|어떤|\?/.test(s)) return null;
-  if (/이전(뉴스|기사)|앞(뉴스|기사)/.test(s)) return 'prevArticle';
-  if (/다음(뉴스|기사)|넘겨|스킵|skip|next/.test(s)) return 'nextArticle';
+  if (/이전(뉴스|기사|장|챕터)|앞(뉴스|기사)/.test(s)) return 'prevArticle';
+  if (/다음(뉴스|기사|장|챕터)|넘겨|스킵|skip|next/.test(s)) return 'nextArticle';
   if (/다음문장/.test(s)) return 'nextSentence';
   if (/이전문장|앞문장/.test(s)) return 'prevSentence';
   if (/멈춰|정지|그만|스톱|stop|일시정지|멈춤/.test(s)) return 'stop';
@@ -441,11 +500,11 @@ async function googleTranslate(list){
   return out;
 }
 
-const TR_SYS = 'You translate English news sentences into natural, accurate Korean for a Korean learner listening along. ' +
+const TR_SYS = 'You translate English sentences from news articles or books into natural, accurate Korean for a Korean learner listening along. ' +
   'Translate each array element on its own, keeping the exact order and count. Write proper nouns in common Korean transliteration. ' +
   'Output ONLY a JSON array of Korean strings with the same length as the input. No commentary.';
 
-const QA_SYS = '너는 영어 뉴스를 듣고 있는 한국인 학습자의 영어 튜터다. 학습자의 영어 실력은 한국 중학생 수준이다. ' +
+const QA_SYS = '너는 영어 뉴스나 책을 듣고 있는 한국인 학습자의 영어 튜터다. 학습자의 영어 실력은 한국 중학생 수준이다. ' +
   '학습자는 음성으로 질문하고, 네 답은 음성 합성으로 소리 내어 읽힌다. ' +
   '규칙: 한국어로 2~4문장, 짧고 쉽게 답한다. 마크다운, 목록, 이모지, 발음기호를 쓰지 않는다. ' +
   '영어 단어나 표현을 말할 때는 영어 철자 그대로 쓰고 바로 뒤에 한국어 뜻을 붙인다. ' +
@@ -499,7 +558,7 @@ async function ask(q){
   addLog('q', q);
   setStatus('답변 생각 중…');
   const ctx = a
-    ? `[현재 기사 제목] ${a.title}\n[직전 문장들]\n${a.sentences.slice(Math.max(0, st.sIdx - 3), st.sIdx).join('\n') || '(없음)'}\n[지금 문장] ${a.sentences[st.sIdx] || '(기사 끝)'}\n[지금 문장 번역] ${a.ko[st.sIdx] || '(아직 없음)'}`
+    ? `[현재 글] ${st.mode === 'doc' ? st.doc.title + ' / ' : ''}${a.title}\n[직전 문장들]\n${a.sentences.slice(Math.max(0, st.sIdx - 3), st.sIdx).join('\n') || '(없음)'}\n[지금 문장] ${a.sentences[st.sIdx] || '(기사 끝)'}\n[지금 문장 번역] ${a.ko[st.sIdx] || '(아직 없음)'}`
     : '(아직 기사를 듣고 있지 않음)';
   const messages = [...chat.slice(-6), {role:'user', content:`${ctx}\n\n[질문] ${q}`}];
   try {
@@ -561,31 +620,237 @@ async function fetchPage(date, page){
   }
 }
 
-function prepArticle(a){
-  if (a.sentences) return a;
-  a.sentences = [a.title, ...splitSentences(a.body)];
-  a.ko = new Array(a.sentences.length);
-  a.pending = {};
-  return a;
-}
 const curArt = () => st.articles[st.aIdx];
 
-// 현재 aIdx의 기사를 확보 (부족하면 다음 페이지, 그 다음엔 하루 전 날짜)
-async function ensureArticle(token){
-  let tries = 0;
-  while (st.aIdx >= st.articles.length){
-    if (++tries > 8) { toast('더 불러올 기사가 없습니다.'); return null; }
-    if (st.page < st.pages) st.page++;
-    else {
-      st.date = addDays(st.date, -1); st.page = 1;
-      toast(st.date + ' 기사로 넘어갑니다');
-    }
-    const list = await fetchPage(st.date, st.page);
-    if (token !== undefined && token !== runToken) return null;
-    if (list === null) return null;
-    st.articles.push(...list);
+/* ---------- 다른 출처 (중계 서버 경유) ---------- */
+const FEEDS = {
+  'bbc-world': {name:'BBC', label:'BBC · World', url:'https://feeds.bbci.co.uk/news/world/rss.xml'},
+  'bbc-tech':  {name:'BBC', label:'BBC · Technology', url:'https://feeds.bbci.co.uk/news/technology/rss.xml'},
+  'bbc-sci':   {name:'BBC', label:'BBC · Science', url:'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml'},
+  'bbc-biz':   {name:'BBC', label:'BBC · Business', url:'https://feeds.bbci.co.uk/news/business/rss.xml'},
+  'npr-news':  {name:'NPR', label:'NPR · News', url:'https://feeds.npr.org/1001/rss.xml'},
+  'npr-tech':  {name:'NPR', label:'NPR · Technology', url:'https://feeds.npr.org/1019/rss.xml'},
+  'aj':        {name:'Al Jazeera', label:'Al Jazeera', url:'https://www.aljazeera.com/xml/rss/all.xml'}
+};
+const READABILITY = 'https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js';
+const JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+
+const scripts = {};
+function loadScript(src){
+  if (!scripts[src]) scripts[src] = new Promise((res, rej) => {
+    const el = document.createElement('script'); el.src = src;
+    el.onload = res;
+    el.onerror = () => { delete scripts[src]; rej(new Error('필요한 라이브러리를 못 불러왔습니다')); };
+    document.head.appendChild(el);
+  });
+  return scripts[src];
+}
+
+// 중계 서버가 있으면 그걸로, 없으면 직접 가져오기
+async function getText(url){
+  let r;
+  if (cfg.proxyUrl){
+    const base = cfg.proxyUrl.trim().replace(/\/+$/, '');
+    try { r = await fetch(`${base}/?t=${encodeURIComponent(cfg.proxyToken)}&url=${encodeURIComponent(url)}`); }
+    catch { throw new Error('중계 서버에 연결하지 못했습니다. 설정의 주소를 확인하세요'); }
+    if (r.status === 403) throw new Error('중계 서버 암호가 맞지 않습니다');
+  } else {
+    try { r = await fetch(url); }
+    catch { throw new Error('이 사이트는 중계 서버가 있어야 가져올 수 있습니다 (설정)'); }
   }
-  return prepArticle(curArt());
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return {text: await r.text(), url: r.headers.get('X-Final-Url') || url};
+}
+
+async function fetchFeed(url, name){
+  setStatus('기사 목록을 불러오는 중…');
+  try {
+    const {text} = await getText(url);
+    const d = new DOMParser().parseFromString(text, 'application/xml');
+    if (d.querySelector('parsererror')) throw new Error('RSS 형식이 아닙니다');
+    const t = d.querySelector('channel > title, feed > title');
+    const chName = name || (t ? t.textContent.trim() : 'News');
+    return [...d.querySelectorAll('item, entry')].map(it => {
+      const l = it.querySelector('link');
+      const link = l ? (l.textContent.trim() || l.getAttribute('href') || '') : '';
+      const ti = it.querySelector('title');
+      return {id:link, url:link, title: ti ? ti.textContent.trim() : '', section:chName};
+    }).filter(a => a.url && a.title && !/\/(videos?|live|av|sounds|audio|podcasts?|programmes)\//i.test(a.url));
+  } catch (e) {
+    toast('목록을 못 불러왔습니다: ' + e.message);
+    return null;
+  } finally { setStatus(''); }
+}
+
+function cleanParas(paras){
+  const JUNK = /^(follow |sign up|subscribe|read more|watch:|listen:|related:|copyright|©|image source|image caption|getty images|click here|share this|advertisement|this article was)/i;
+  const seen = new Set();
+  return paras.map(p => (p || '').replace(/\s+/g, ' ').trim())
+    .filter(p => p.length >= 40 && !JUNK.test(p) && !seen.has(p) && seen.add(p));
+}
+
+async function fetchArticleBody(a){
+  const {text, url} = await getText(a.url);
+  let paras = [];
+  try {
+    await loadScript(READABILITY);
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    const base = doc.createElement('base'); base.href = url;
+    if (doc.head) doc.head.prepend(base);
+    const art = new window.Readability(doc).parse();
+    if (art && art.content){
+      const d2 = new DOMParser().parseFromString(art.content, 'text/html');
+      paras = [...d2.querySelectorAll('p')].map(p => p.textContent);
+    }
+  } catch {}
+  if (cleanParas(paras).length < 3){
+    const d3 = new DOMParser().parseFromString(text, 'text/html');
+    paras = [...d3.querySelectorAll('article p, main p')].map(p => p.textContent);
+  }
+  return cleanParas(paras).join('\n\n');
+}
+
+/* ---------- 책 ---------- */
+function stripGutenberg(t){
+  t = t.replace(/\r\n?/g, '\n');
+  const s = t.search(/\*\*\*\s*START OF (THE|THIS) PROJECT GUTENBERG[^\n]*/i);
+  if (s >= 0) t = t.slice(t.indexOf('\n', s) + 1);
+  const e = t.search(/\*\*\*\s*END OF (THE|THIS) PROJECT GUTENBERG/i);
+  if (e >= 0) t = t.slice(0, e);
+  return t.trim();
+}
+
+const HEAD_RE = /^(chapter|book|part|stave|volume|letter)\s+([0-9]+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|the\s+\w+)\b/i;
+const isCaps = p => p.length < 60 && /[A-Z]{3}/.test(p) && p === p.toUpperCase() && !/[.!?,;]$/.test(p);
+
+function chaptersBy(paras, isHead){
+  const out = []; let cur = {title:'', paras:[]};
+  for (let i = 0; i < paras.length; i++){
+    const p = paras[i];
+    if (p.length < 90 && isHead(p)){
+      if (cur.paras.length) out.push(cur);
+      let title = p; const nx = paras[i + 1];
+      if (nx && nx.length < 70 && !/[.!?"”’]$/.test(nx) && !isHead(nx)){ title += ' ' + nx; i++; }
+      cur = {title, paras:[]};
+    } else cur.paras.push(p);
+  }
+  if (cur.paras.length) out.push(cur);
+  // 목차처럼 본문이 거의 없는 덩어리는 버림
+  return out.map(c => ({title:c.title, body:c.paras.join('\n\n')}))
+            .filter(c => c.body.length >= 300 && (c.title || c.body.length > 1500));
+}
+
+function splitBook(text){
+  const paras = text.replace(/\r\n?/g, '\n').split(/\n\s*\n/)
+    .map(p => p.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
+  let ch = chaptersBy(paras, p => HEAD_RE.test(p));
+  if (ch.length < 2) ch = chaptersBy(paras, isCaps);
+  if (ch.length < 2){
+    ch = [];
+    for (let i = 0; i < paras.length; i += 30) ch.push({title:'', body:paras.slice(i, i + 30).join('\n\n')});
+  }
+  return ch.map((c, i) => ({title: c.title || `Part ${i + 1}`, body: c.body}));
+}
+
+function resolvePath(base, href){
+  const out = [];
+  for (const p of (base + href.split('#')[0]).split('/')){
+    if (p === '..') out.pop(); else if (p && p !== '.') out.push(p);
+  }
+  return out.join('/');
+}
+
+async function parseEpub(buf){
+  const zip = await window.JSZip.loadAsync(buf);
+  const xml = t => new DOMParser().parseFromString(t, 'application/xml');
+  const cf = zip.file('META-INF/container.xml');
+  if (!cf) throw new Error('epub 형식이 아닙니다');
+  const rootfile = xml(await cf.async('text')).getElementsByTagNameNS('*', 'rootfile')[0];
+  const opfPath = rootfile.getAttribute('full-path');
+  const opf = xml(await zip.file(opfPath).async('text'));
+  const base = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : '';
+  const first = n => { const e = opf.getElementsByTagNameNS('*', n)[0]; return e ? e.textContent.trim() : ''; };
+  const manifest = {};
+  for (const it of opf.getElementsByTagNameNS('*', 'item')) manifest[it.getAttribute('id')] = it.getAttribute('href');
+  const chapters = [];
+  for (const ref of opf.getElementsByTagNameNS('*', 'itemref')){
+    const href = manifest[ref.getAttribute('idref')]; if (!href) continue;
+    const f = zip.file(resolvePath(base, decodeURIComponent(href))); if (!f) continue;
+    const doc = new DOMParser().parseFromString(await f.async('text'), 'text/html');
+    let paras = [...doc.querySelectorAll('p')].map(p => p.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    if (!paras.length && doc.body) paras = [doc.body.textContent.replace(/\s+/g, ' ').trim()];
+    const body = paras.join('\n\n');
+    if (body.length < 300) continue;
+    const h = doc.querySelector('h1, h2, h3');
+    chapters.push({title: h ? h.textContent.replace(/\s+/g, ' ').trim() : `Part ${chapters.length + 1}`, body});
+  }
+  return {title: first('title') || '책', author: first('creator'), chapters};
+}
+
+/* ---------- 저장소 (책 본문 보관) ---------- */
+function idbOpen(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('listener', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(k, v){
+  try { const db = await idbOpen(); await new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); } catch {}
+}
+async function idbGet(k){
+  try { const db = await idbOpen(); return await new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch { return undefined; }
+}
+
+/* ---------- 기사·장 준비 ---------- */
+function prepArticle(a){
+  if (a.sentences) return Promise.resolve(true);
+  if (a.failed) return Promise.resolve(false);
+  if (a._p) return a._p;
+  a._p = (async () => {
+    if (a.body == null){
+      setStatus('본문 가져오는 중…');
+      try { a.body = await fetchArticleBody(a); } catch (e) { a.failed = e.message; }
+      setStatus('');
+      if (a.failed) return false;
+    }
+    if ((a.body || '').length < 200){ a.failed = a.failed || '본문이 너무 짧습니다'; return false; }
+    a.sentences = [a.title, ...splitSentences(a.body)];
+    a.ko = new Array(a.sentences.length);
+    a.pending = {};
+    return true;
+  })();
+  return a._p;
+}
+
+let moreTries = 0;
+async function guardianMore(token){
+  if (++moreTries > 8){ moreTries = 0; toast('더 불러올 기사가 없습니다.'); return false; }
+  if (st.page < st.pages) st.page++;
+  else { st.date = addDays(st.date, -1); st.page = 1; toast(st.date + ' 기사로 넘어갑니다'); }
+  const list = await fetchPage(st.date, st.page);
+  if (token !== runToken || list === null) return false;
+  if (list.length) moreTries = 0;
+  st.articles.push(...list);
+  return true;
+}
+
+// 현재 위치의 기사(또는 장)를 읽을 수 있게 준비. 실패한 기사는 건너뜀
+async function ensureArticle(token){
+  for (let guard = 0; guard < 40; guard++){
+    if (st.aIdx >= st.articles.length){
+      if (st.mode !== 'guardian'){ toast(st.mode === 'doc' ? '책을 끝까지 읽었습니다' : '목록의 기사를 다 읽었습니다'); return null; }
+      if (!await guardianMore(token)) return null;
+      continue;
+    }
+    const a = curArt();
+    const ok = await prepArticle(a);
+    if (token !== runToken) return null;
+    if (ok) return a;
+    toast('본문을 못 가져와 넘어갑니다' + (a.failed ? ': ' + a.failed : ''));
+    st.aIdx++; st.sIdx = 0;
+  }
+  return null;
 }
 
 /* ---------- 화면 ---------- */
@@ -593,10 +858,12 @@ function renderNow(){
   const a = curArt();
   if (!a || !a.sentences) return;
   $('#nowCard').hidden = false; $('#trCard').hidden = false;
-  $('#mSection').textContent = a.section || 'News';
-  $('#mDate').textContent = st.date;
-  $('#mPos').textContent = `기사 ${st.aIdx + 1} · 문장 ${Math.min(st.sIdx + 1, a.sentences.length)}/${a.sentences.length}`;
-  $('#mTitle').textContent = a.title; $('#mTitle').href = a.url;
+  const isDoc = st.mode === 'doc', sPos = `문장 ${Math.min(st.sIdx + 1, a.sentences.length)}/${a.sentences.length}`;
+  $('#mSection').textContent = isDoc ? st.doc.title : (a.section || 'News');
+  $('#mDate').textContent = isDoc ? (st.doc.author || '') : (st.mode === 'guardian' ? st.date : '');
+  $('#mPos').textContent = isDoc ? `${st.aIdx + 1}/${st.articles.length}장 · ${sPos}` : `기사 ${st.aIdx + 1} · ${sPos}`;
+  $('#mTitle').textContent = a.title;
+  if (a.url) $('#mTitle').href = a.url; else $('#mTitle').removeAttribute('href');
   $('#mBar').style.width = (100 * Math.min(st.sIdx + 1, a.sentences.length) / a.sentences.length) + '%';
   $('#curEn').textContent = a.sentences[st.sIdx] || '';
   const ko = a.ko[st.sIdx], ko$ = $('#curKo');
@@ -629,12 +896,22 @@ function renderControls(){
   $('#airLabel').textContent = document.body.classList.contains('listening') ? 'Listening' : (st.playing ? 'On air' : 'Standby');
   $('#playLabel').textContent = st.playing ? '일시정지' : '재생';
   $('#icoPlay').innerHTML = st.playing ? '<path d="M7 5h4v14H7zm6 0h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+  $('#nextArtLabel').textContent = st.mode === 'doc' ? '다음 장' : '다음 뉴스';
   const has = st.articles.length > 0;
   ['#btnPrev','#btnNext','#btnNextArt','#btnPlay'].forEach(id => $(id).disabled = !has);
 }
 function savePos(){
   const a = curArt(); if (!a) return;
-  LS.set('nl.pos', {date:st.date, section:st.section, page:st.page, id:a.id, sIdx:st.sIdx, title:a.title});
+  const p = {mode:st.mode, id:a.id, aIdx:st.aIdx, sIdx:st.sIdx};
+  if (st.mode === 'guardian') Object.assign(p, {date:st.date, section:st.section, page:st.page, label:'Guardian · ' + st.date});
+  else if (st.mode === 'rss') Object.assign(p, {src:st.src, feedUrl:st.feedUrl, label:(FEEDS[st.src] ? FEEDS[st.src].label : 'RSS')});
+  else Object.assign(p, {docId:st.doc.id, label:st.doc.title + ' · ' + (st.aIdx + 1) + '장'});
+  LS.set('nl.pos', p);
+}
+function updateResumeBtn(){
+  const p = LS.get('nl.pos', null);
+  $('#btnResume').hidden = !p;
+  if (p) $('#btnResume').textContent = '이어 듣기 · ' + (p.label || p.date || '');
 }
 
 /* ---------- 재생 흐름 ---------- */
@@ -661,6 +938,7 @@ async function loop(token){
     if (st.sIdx >= art.sentences.length){ moveArticle(1); continue; }
     renderTranscript(); renderNow(); savePos();
     prefetch(art, st.sIdx);
+    if (st.mode === 'rss' && art.sentences.length - st.sIdx === 4 && st.articles[st.aIdx + 1]) prepArticle(st.articles[st.aIdx + 1]);
 
     if (!await speak(art.sentences[st.sIdx], 'en', token)) return;
 
@@ -699,7 +977,7 @@ function setListening(on){ document.body.classList.toggle('listening', on); rend
 async function runCommand(cmd){
   const resume = st.resumeAfter; st.resumeAfter = false;
   switch (cmd){
-    case 'nextArticle': moveArticle(1); toast('다음 뉴스'); return play();
+    case 'nextArticle': moveArticle(1); toast(st.mode === 'doc' ? '다음 장' : '다음 뉴스'); return play();
     case 'prevArticle': moveArticle(-1); return play();
     case 'nextSentence': st.sIdx++; return play();
     case 'prevSentence': st.sIdx = Math.max(0, st.sIdx - 1); return play();
@@ -753,34 +1031,191 @@ $('#askForm').addEventListener('submit', async e => {
   await handleUtterance(q);
 });
 
+/* ---------- 시작 화면 ---------- */
+function unlockSpeech(){ try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch {} }
+function startMsg(t){ $('#startMsg').textContent = t || ''; }
+function setBusy(on, msg){ $('#btnStart').disabled = on; startMsg(on ? (msg || '불러오는 중…') : ''); }
+function enterPlayer(){ $('#startCard').hidden = true; $('#btnDate').hidden = false; chat = []; trFor = null; renderControls(); }
+
+// Guardian (날짜 지정)
 async function startSession(date, section, page, findId, sIdx){
   interrupt();
-  st.date = date; st.section = section; st.page = page; st.pages = page;
-  st.articles = []; st.aIdx = 0; st.sIdx = 0; chat = []; trFor = null;
-  $('#btnStart').disabled = true;
+  setBusy(true, '기사 목록을 불러오는 중…');
+  const keepPages = st.pages;
+  st.section = section; st.pages = page;
   const list = await fetchPage(date, page);
-  $('#btnStart').disabled = false;
-  if (list === null) return;
-  st.articles = list;
+  setBusy(false);
+  if (list === null){ st.pages = keepPages; return; }
+  Object.assign(st, {mode:'guardian', src:'guardian', date, page, articles:list, aIdx:0, sIdx:0});
+  moreTries = 0;
   if (findId){
     const i = list.findIndex(a => a.id === findId);
     if (i >= 0){ st.aIdx = i; st.sIdx = sIdx || 0; }
   }
-  if (!list.length){ toast('그 날짜에 기사가 없어 하루 전으로 찾습니다.'); }
-  $('#startCard').hidden = true; $('#btnDate').hidden = false;
-  play();
+  if (!list.length) toast('그 날짜에 기사가 없어 하루 전으로 찾습니다.');
+  enterPlayer(); play();
 }
-$('#btnStart').addEventListener('click', () => {
-  // 사용자 터치 안에서 음성 출력을 한 번 열어 둠 (모바일 자동재생 제한 대비)
-  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch {}
-  startSession($('#inDate').value || today(), $('#inSection').value, 1);
-});
-$('#btnResume').addEventListener('click', () => {
+
+// RSS 뉴스 (최신 기사)
+async function startFeed(key, customUrl, findId, sIdx){
+  interrupt();
+  const f = FEEDS[key];
+  const url = f ? f.url : customUrl;
+  setBusy(true, '기사 목록을 불러오는 중…');
+  const list = await fetchFeed(url, f ? f.name : '');
+  setBusy(false);
+  if (!list) return;
+  if (!list.length){ toast('읽을 수 있는 기사가 없습니다'); return; }
+  Object.assign(st, {mode:'rss', src:key, feedUrl:url, articles:list, aIdx:0, sIdx:0});
+  if (findId){
+    const i = list.findIndex(a => a.id === findId);
+    if (i >= 0){ st.aIdx = i; st.sIdx = sIdx || 0; }
+  }
+  enterPlayer(); play();
+}
+
+// 책·파일
+function startDoc(doc, chIdx, sIdx){
+  interrupt();
+  Object.assign(st, {
+    mode:'doc', doc,
+    articles: doc.chapters.map((c, i) => ({id:'ch' + i, title:c.title, body:c.body, section:doc.title, url:''})),
+    aIdx: Math.min(chIdx || 0, doc.chapters.length - 1), sIdx: sIdx || 0
+  });
+  enterPlayer(); play();
+}
+
+async function openGutenberg(b, chIdx, sIdx){
+  unlockSpeech();
+  const key = 'doc:gb' + b.id;
+  let doc = await idbGet(key);
+  if (!doc){
+    const keys = Object.keys(b.formats || {});
+    const k = keys.find(x => /^text\/plain/.test(x) && /utf-8/i.test(x)) || keys.find(x => /^text\/plain/.test(x));
+    if (!k){ toast('텍스트로 받을 수 없는 책입니다'); return; }
+    startMsg('책 내려받는 중… (큰 책은 몇 초 걸려요)');
+    try {
+      const {text} = await getText(b.formats[k]);
+      doc = {id:'gb' + b.id, kind:'book', title:b.title, author:(b.authors || []).map(a => a.name).join(', '), chapters:splitBook(stripGutenberg(text))};
+      if (!doc.chapters.length) throw new Error('본문을 찾지 못했습니다');
+      idbSet(key, doc);
+    } catch (e) { startMsg(''); toast('책을 못 가져왔습니다: ' + e.message); return; }
+    startMsg('');
+  }
+  startDoc(doc, chIdx, sIdx);
+}
+
+async function searchBooks(q){
+  const list = $('#bookResults');
+  const note = t => { list.innerHTML = ''; const li = document.createElement('li'); li.className = 'muted'; li.textContent = t; list.appendChild(li); };
+  note('찾는 중…');
+  try {
+    const {text} = await getText('https://gutendex.com/books?languages=en&search=' + encodeURIComponent(q));
+    const books = (JSON.parse(text).results || []).filter(b => Object.keys(b.formats || {}).some(k => k.startsWith('text/plain')));
+    if (!books.length){ note('결과가 없습니다. 다른 단어로 찾아보세요.'); return; }
+    list.innerHTML = '';
+    for (const b of books.slice(0, 15)){
+      const li = document.createElement('li'), btn = document.createElement('button');
+      btn.type = 'button';
+      const t = document.createElement('b'); t.textContent = b.title;
+      const au = document.createElement('span'); au.textContent = (b.authors || []).map(a => a.name).join(', ') || 'Unknown';
+      btn.append(t, au);
+      btn.addEventListener('click', () => openGutenberg(b));
+      li.appendChild(btn); list.appendChild(li);
+    }
+  } catch (e) { note('검색 실패: ' + e.message); }
+}
+
+const PRESETS = [
+  ['Peter Rabbit', 'tale of peter rabbit'], ['이솝 우화', 'aesop fables'], ['Grimm 동화', 'grimm fairy tales'],
+  ['오즈의 마법사', 'wonderful wizard of oz'], ['Alice', 'alice wonderland'], ['Peter Pan', 'peter pan barrie'],
+  ['크리스마스 캐럴', 'christmas carol dickens'], ['셜록 홈즈', 'adventures of sherlock holmes']
+];
+
+function updateSrcNote(){
+  const v = $('#inSource').value;
+  $('#guardianOpts').hidden = v !== 'guardian';
+  $('#customWrap').hidden = v !== 'custom';
+  $('#srcNote').textContent = v === 'guardian'
+    ? '날짜를 고를 수 있습니다. 기사가 떨어지면 하루 전 기사로 넘어갑니다.'
+    : '최신 기사만 읽습니다(날짜 선택 불가).' + (cfg.proxyUrl ? '' : ' 설정에서 중계 서버를 넣어야 동작합니다.');
+}
+
+async function resume(){
   const p = LS.get('nl.pos', null); if (!p) return;
-  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch {}
-  startSession(p.date, p.section || '', p.page || 1, p.id, p.sIdx);
-});
-$('#btnDate').addEventListener('click', () => { pause(); $('#startCard').hidden = false; window.scrollTo({top:0, behavior:'smooth'}); });
+  unlockSpeech();
+  if (!p.mode || p.mode === 'guardian') return startSession(p.date, p.section || '', p.page || 1, p.id, p.sIdx);
+  if (p.mode === 'rss') return startFeed(p.src, p.feedUrl, p.id, p.sIdx);
+  const doc = await idbGet('doc:' + p.docId);
+  if (doc) return startDoc(doc, p.aIdx, p.sIdx);
+  if (/^gb\d+$/.test(p.docId)){
+    try { const {text} = await getText('https://gutendex.com/books/' + p.docId.slice(2)); return openGutenberg(JSON.parse(text), p.aIdx, p.sIdx); }
+    catch (e) { toast('책을 다시 못 불러왔습니다: ' + e.message); }
+  } else toast('파일을 다시 골라 주세요.');
+}
+
+function initStart(){
+  const sel = $('#inSource');
+  const opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  opt('guardian', 'The Guardian (날짜 선택)');
+  for (const [k, f] of Object.entries(FEEDS)) opt(k, f.label);
+  opt('custom', '직접 입력한 RSS 주소');
+  sel.addEventListener('change', updateSrcNote);
+  $('#inCustom').value = cfg.customRss || '';
+  updateSrcNote();
+
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    $('#paneNews').hidden = t.dataset.tab !== 'news';
+    $('#paneBook').hidden = t.dataset.tab !== 'book';
+    $('#paneFile').hidden = t.dataset.tab !== 'file';
+    startMsg('');
+  }));
+
+  const chips = $('#chips');
+  for (const [label, q] of PRESETS){
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', () => { $('#bookQ').value = q; searchBooks(q); });
+    chips.appendChild(b);
+  }
+  $('#bookForm').addEventListener('submit', e => { e.preventDefault(); const q = $('#bookQ').value.trim(); if (q) searchBooks(q); });
+
+  $('#fileLabel').addEventListener('click', unlockSpeech);
+  $('#inFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    startMsg('파일 여는 중…');
+    try {
+      let doc;
+      if (/\.epub$/i.test(f.name) || f.type === 'application/epub+zip'){
+        await loadScript(JSZIP);
+        doc = await parseEpub(await f.arrayBuffer());
+      } else {
+        doc = {title:f.name.replace(/\.[^.]+$/, ''), author:'', chapters:splitBook(stripGutenberg(await f.text()))};
+      }
+      if (!doc.chapters.length) throw new Error('읽을 수 있는 본문이 없습니다');
+      doc.id = 'file:' + f.name + ':' + f.size; doc.kind = 'file';
+      await idbSet('doc:' + doc.id, doc);
+      startMsg('');
+      startDoc(doc, 0, 0);
+    } catch (err) { startMsg(''); toast('파일을 못 열었습니다: ' + err.message); }
+    finally { e.target.value = ''; }
+  });
+
+  $('#btnStart').addEventListener('click', () => {
+    unlockSpeech();
+    const v = $('#inSource').value;
+    if (v === 'guardian') return startSession($('#inDate').value || today(), $('#inSection').value, 1);
+    if (v === 'custom'){
+      const u = $('#inCustom').value.trim();
+      if (!/^https?:\/\//i.test(u)){ toast('RSS 주소를 넣어 주세요'); return; }
+      cfg.customRss = u; saveCfg();
+      return startFeed('custom', u);
+    }
+    startFeed(v);
+  });
+  $('#btnResume').addEventListener('click', resume);
+  $('#btnDate').addEventListener('click', () => { pause(); updateResumeBtn(); $('#startCard').hidden = false; window.scrollTo({top:0, behavior:'smooth'}); });
+}
 
 /* ---------- 설정 창 ---------- */
 $('#btnSettings').addEventListener('click', () => {
@@ -789,6 +1224,7 @@ $('#btnSettings').addEventListener('click', () => {
   $('#sClaude').value = cfg.claudeKey; $('#sModel').value = cfg.model; $('#sGuardian').value = cfg.guardianKey;
   $('#sVoice').value = cfg.enVoice; $('#sRate').value = cfg.rate; $('#rateVal').textContent = cfg.rate;
   $('#sKo').checked = cfg.readKo; $('#sHands').checked = cfg.handsFree;
+  $('#sProxy').value = cfg.proxyUrl; $('#sProxyToken').value = cfg.proxyToken;
   $('#dlg').showModal();
 });
 $('#sRate').addEventListener('input', e => { $('#rateVal').textContent = e.target.value; });
@@ -802,19 +1238,20 @@ $('#setForm').addEventListener('submit', () => {
   cfg.guardianKey = $('#sGuardian').value.trim() || 'test';
   cfg.enVoice = $('#sVoice').value; cfg.rate = +$('#sRate').value;
   cfg.readKo = $('#sKo').checked; cfg.handsFree = $('#sHands').checked;
-  saveCfg(); toast('저장했습니다'); renderNow();
+  cfg.proxyUrl = $('#sProxy').value.trim(); cfg.proxyToken = $('#sProxyToken').value.trim();
+  saveCfg(); toast('저장했습니다'); renderNow(); updateSrcNote();
 });
 
 /* ---------- 시작 ---------- */
 $('#inDate').max = today();
 $('#inDate').value = addDays(today(), -1);
-const pos = LS.get('nl.pos', null);
-if (pos){ $('#btnResume').hidden = false; $('#btnResume').textContent = '이어 듣기 · ' + pos.date; }
+initStart();
+updateResumeBtn();
 renderControls();
 if (!hasKey(cfg.qaProvider)) setTimeout(() => toast('질문 답변을 쓰려면 설정에서 ' + NAMES[cfg.qaProvider] + ' API 키를 넣어 주세요.'), 600);
 
 // 테스트용 노출
-window.__nl = {splitSentences, parseCommand, parseJsonArray};
+window.__nl = {splitSentences, parseCommand, parseJsonArray, splitBook, stripGutenberg, cleanParas, resolvePath, parseEpub};
 })();
 </script>
 </body>
