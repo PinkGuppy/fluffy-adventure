@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121821">
+<title>뉴스 리스너</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 한 열 라디오 콘솔 — 위는 기사·문장, 아래는 엄지로 누르는 고정 컨트롤 바 */
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --fg:#121821; --muted:#5A6576; --line:#D6DCE4;
+  --accent:#D3243B; --accent-ink:#FFFFFF; --hl:#FFF1D6; --ko:#2C4F7C;
+  --f-en:"Newsreader", Georgia, "Times New Roman", serif;
+  --f-ui:"IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "Roboto Mono", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0E1116; --surface:#171B22; --fg:#E7EAF0; --muted:#97A1B0; --line:#2A313C;
+    --accent:#FF4A5C; --accent-ink:#1A0508; --hl:#2B2615; --ko:#9CC1F0;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--fg); font:15px/1.6 var(--f-ui);
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:calc(120px + env(safe-area-inset-bottom,0px));
+}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{display:flex;align-items:center;justify-content:space-between;padding-block:14px 4px}
+.brand{display:flex;align-items:center;gap:10px;font:500 12px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase}
+.onair{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line);border-radius:4px;color:var(--muted)}
+.onair i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+body.playing .onair{color:var(--accent);border-color:var(--accent)}
+body.playing .onair i{background:var(--accent);animation:pulse 1.4s ease-in-out infinite}
+body.listening .onair{color:var(--ko);border-color:var(--ko)}
+body.listening .onair i{background:var(--ko)}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){body.playing .onair i{animation:none}}
+.ghost{background:none;border:1px solid var(--line);border-radius:6px;padding:6px 12px;font-size:13px;color:var(--muted)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.start h1{font:600 22px/1.3 var(--f-ui);margin:0 0 4px;text-wrap:balance}
+.start p{margin:0 0 14px;color:var(--muted);font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row > label{flex:1 1 140px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);letter-spacing:.02em}
+input[type=date],select,input[type=text],input[type=password]{
+  width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:15px}
+.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:12px 18px;font-weight:700;flex:1 1 auto}
+.secondary{background:none;border:1px solid var(--line);border-radius:8px;padding:12px 18px;font-weight:500;flex:1 1 auto}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+
+.meta{font:500 11px/1.4 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.meta b{color:var(--accent);font-weight:500}
+.headline{font:600 21px/1.3 var(--f-en);margin:6px 0 0;text-wrap:balance}
+.headline a{color:inherit;text-decoration:none}
+.now{display:flex;flex-direction:column;gap:10px}
+.now .en{font:400 22px/1.45 var(--f-en);margin:0}
+.now .ko{font:400 16px/1.6 var(--f-ui);color:var(--ko);margin:0;min-height:1.6em}
+.now .ko.wait{color:var(--muted);font-size:13px}
+.bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.status{font-size:13px;color:var(--muted);min-height:1.4em}
+
+details.card{padding:0}
+details summary{padding:14px 16px;cursor:pointer;font-weight:500;list-style:none;display:flex;justify-content:space-between}
+details summary::after{content:"펼치기";font-size:12px;color:var(--muted)}
+details[open] summary::after{content:"접기"}
+ol.tr{margin:0;padding:0 16px 16px;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:55vh;overflow:auto}
+ol.tr li{padding:8px 10px;border-radius:6px;cursor:pointer}
+ol.tr li .e{display:block;font:400 15px/1.5 var(--f-en)}
+ol.tr li .k{display:block;font-size:13px;color:var(--ko)}
+ol.tr li.cur{background:var(--hl)}
+ol.tr li.done .e{color:var(--muted)}
+
+.qa{display:flex;flex-direction:column;gap:10px}
+.qa h2{font:500 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+.log{display:flex;flex-direction:column;gap:8px}
+.log p{margin:0;padding:10px 12px;border-radius:8px;font-size:14px}
+.log .q{background:var(--bg);align-self:flex-end;max-width:85%}
+.log .a{border:1px solid var(--line)}
+.log .err{color:var(--accent);border:1px dashed var(--accent)}
+.ask{display:flex;gap:8px}
+.ask input{flex:1;min-width:0}
+.ask button{flex:0 0 auto;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:0 14px}
+.heard{font-size:13px;color:var(--ko);min-height:1.4em}
+
+nav.controls{
+  position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px, env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
+}
+nav .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 76px 1fr 1fr;align-items:center;gap:6px}
+nav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:6px 0;border-radius:8px}
+nav button svg{width:26px;height:26px;fill:var(--fg)}
+nav button:disabled{opacity:.35}
+nav .mic{width:68px;height:68px;margin:0 auto;border-radius:50%;background:var(--accent);color:var(--accent-ink);justify-content:center;font-weight:700}
+nav .mic svg{fill:var(--accent-ink);width:30px;height:30px}
+body.listening nav .mic{background:var(--ko)}
+
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);padding:0;width:min(520px, calc(100% - 32px));max-height:85vh}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{padding:18px;display:flex;flex-direction:column;gap:14px}
+dialog h2{margin:0;font-size:18px}
+dialog label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+dialog small{font-size:12px;color:var(--muted);line-height:1.5}
+dialog .chk{flex-direction:row;align-items:flex-start;gap:10px;color:var(--fg)}
+dialog .chk input{margin-top:4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:calc(100% - 32px);z-index:9;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="onair"><i></i><span id="airLabel">Standby</span></span> News Listener</div>
+    <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="ghost" id="btnDate" type="button" hidden>날짜 변경</button><button class="ghost" id="btnSettings" type="button">설정</button></div>
+  </header>
+
+  <section class="card start" id="startCard">
+    <h1>어느 날 뉴스를 들을까요?</h1>
+    <p>The Guardian 기사를 한 문장씩 영어로 읽고 한국어 번역을 이어서 읽어 줍니다. 멈출 때까지 다음 기사로 계속 넘어갑니다.</p>
+    <div class="row">
+      <label for="inDate">날짜<input type="date" id="inDate"></label>
+      <label for="inSection">분야
+        <select id="inSection">
+          <option value="">전체</option>
+          <option value="world">World 국제</option>
+          <option value="us-news">US 미국</option>
+          <option value="uk-news">UK 영국</option>
+          <option value="business">Business 경제</option>
+          <option value="technology">Technology 기술</option>
+          <option value="science">Science 과학</option>
+          <option value="environment">Environment 환경</option>
+          <option value="sport">Sport 스포츠</option>
+          <option value="culture">Culture 문화</option>
+          <option value="lifeandstyle">Life & style 생활</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnStart" type="button">듣기 시작</button>
+      <button class="secondary" id="btnResume" type="button" hidden>이어 듣기</button>
+    </div>
+  </section>
+
+  <section class="card now" id="nowCard" hidden>
+    <div class="meta"><b id="mSection">—</b><span id="mDate"></span><span id="mPos"></span></div>
+    <h2 class="headline"><a id="mTitle" target="_blank" rel="noopener"></a></h2>
+    <div class="bar"><i id="mBar"></i></div>
+    <p class="en" id="curEn"></p>
+    <p class="ko" id="curKo"></p>
+    <div class="status" id="status"></div>
+  </section>
+
+  <details class="card" id="trCard" hidden>
+    <summary>기사 전체 문장 (눌러서 이동)</summary>
+    <ol class="tr" id="tr"></ol>
+  </details>
+
+  <section class="card qa">
+    <h2>질문 · 답변</h2>
+    <div class="heard" id="heard">마이크를 누르고 말하세요. "다음 뉴스", "다시", "멈춰", "계속", "천천히"는 명령으로 처리합니다.</div>
+    <div class="log" id="log"></div>
+    <form class="ask" id="askForm">
+      <input type="text" id="askIn" placeholder="글자로 질문하기" autocomplete="off">
+      <button type="submit">보내기</button>
+    </form>
+  </section>
+</div>
+
+<nav class="controls" aria-label="재생 컨트롤">
+  <div class="in">
+    <button type="button" id="btnPrev" aria-label="이전 문장"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z"/></svg>이전 문장</button>
+    <button type="button" id="btnPlay" aria-label="재생"><svg viewBox="0 0 24 24" id="icoPlay"><path d="M8 5v14l11-7z"/></svg><span id="playLabel">재생</span></button>
+    <button type="button" class="mic" id="btnMic" aria-label="음성 질문"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg></button>
+    <button type="button" id="btnNext" aria-label="다음 문장"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>다음 문장</button>
+    <button type="button" id="btnNextArt" aria-label="다음 뉴스"><svg viewBox="0 0 24 24"><path d="M4 18l7-6-7-6zm9 0 7-6-7-6z"/></svg>다음 뉴스</button>
+  </div>
+</nav>
+
+<dialog id="dlg">
+  <form method="dialog" id="setForm">
+    <h2>설정</h2>
+    <label for="sTr">번역 엔진
+      <select id="sTr">
+        <option value="google">Google 번역 (무료, 키 필요 없음)</option>
+        <option value="gemini">Gemini (무료 키)</option>
+        <option value="claude">Claude (유료 키)</option>
+      </select>
+    </label>
+    <label for="sQa">질문 답변 AI
+      <select id="sQa">
+        <option value="gemini">Gemini (무료 키)</option>
+        <option value="claude">Claude (유료 키)</option>
+      </select>
+    </label>
+    <label for="sGemini">Gemini API 키
+      <input type="password" id="sGemini" placeholder="AIza..." autocomplete="off">
+      <small>aistudio.google.com에서 카드 등록 없이 무료 발급. 무료 등급은 대화 내용이 Google 제품 개선에 쓰일 수 있습니다.</small>
+    </label>
+    <label for="sGeminiModel">Gemini 모델
+      <input type="text" id="sGeminiModel">
+      <small>기본 gemini-3.8-flash. 한도 초과 오류가 잦으면 gemini-3.5-flash-lite.</small>
+    </label>
+    <label for="sClaude">Claude API 키 (선택)
+      <input type="password" id="sClaude" placeholder="sk-ant-..." autocomplete="off">
+      <small>Claude를 고른 경우에만 필요. 키는 이 휴대폰 브라우저에만 저장됩니다.</small>
+    </label>
+    <label for="sModel">Claude 모델
+      <input type="text" id="sModel">
+    </label>
+    <label for="sGuardian">Guardian API 키
+      <input type="text" id="sGuardian" autocomplete="off">
+      <small>"test"로도 동작하지만 요청 수 제한이 큽니다. open-platform.theguardian.com에서 무료 키를 받아 넣으세요.</small>
+    </label>
+    <label for="sVoice">영어 목소리<select id="sVoice"></select></label>
+    <label for="sRate">읽기 속도 <span id="rateVal"></span>
+      <input type="range" id="sRate" min="0.6" max="1.3" step="0.05">
+    </label>
+    <label class="chk" for="sKo"><input type="checkbox" id="sKo"><span>한국어 번역도 소리 내어 읽기</span></label>
+    <label class="chk" for="sHands"><input type="checkbox" id="sHands"><span>손 안 대고 쓰기: 문장마다 2.5초 동안 음성 명령 듣기<br><small>문장마다 마이크 신호음이 납니다. 이어폰을 쓰면 더 정확합니다.</small></span></label>
+    <div class="actions"><button class="primary" value="ok">저장</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- 설정 ---------- */
+const cfg = Object.assign({
+  trProvider:'google', qaProvider:'gemini',
+  geminiKey:'', geminiModel:'gemini-3.8-flash',
+  claudeKey:'', model:'claude-haiku-5-5', guardianKey:'test',
+  enVoice:'', rate:0.95, readKo:true, handsFree:false
+}, LS.get('nl.cfg', {}));
+const saveCfg = () => LS.set('nl.cfg', cfg);
+
+/* ---------- 상태 ---------- */
+const st = {
+  date:'', section:'', page:1, pages:1,
+  articles:[], aIdx:0, sIdx:0,
+  playing:false, resumeAfter:false
+};
+let runToken = 0;          // 재생 흐름 취소용
+let chat = [];             // 현재 기사에 대한 질문 기록
+const CHUNK = 12;          // 한 번에 번역할 문장 수
+
+/* ---------- 작은 UI 도우미 ---------- */
+let toastT;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); }
+function setStatus(s){ $('#status').textContent = s || ''; }
+function addLog(kind, text){
+  const p = document.createElement('p'); p.className = kind; p.textContent = text;
+  $('#log').appendChild(p);
+  const all = $('#log').children; while (all.length > 12) all[0].remove();
+  p.scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+function today(){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+function addDays(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
+
+/* ---------- 음성 출력 ---------- */
+let voices = [];
+function loadVoices(){
+  voices = speechSynthesis.getVoices();
+  const sel = $('#sVoice'); sel.innerHTML = '';
+  const en = voices.filter(v => /^en/i.test(v.lang));
+  const auto = document.createElement('option'); auto.value = ''; auto.textContent = '자동 (미국 영어)'; sel.appendChild(auto);
+  en.forEach(v => { const o = document.createElement('option'); o.value = v.voiceURI; o.textContent = `${v.name} (${v.lang})`; sel.appendChild(o); });
+  sel.value = cfg.enVoice;
+}
+if ('speechSynthesis' in window){ speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+
+function pickVoice(lang){
+  if (lang === 'en') return voices.find(v => v.voiceURI === cfg.enVoice) || voices.find(v => /en[-_]US/i.test(v.lang)) || voices.find(v => /^en/i.test(v.lang));
+  return voices.find(v => /ko[-_]KR/i.test(v.lang)) || voices.find(v => /^ko/i.test(v.lang));
+}
+
+function speak(text, lang, token){
+  return new Promise(res => {
+    if (!text || token !== runToken) return res(false);
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice(lang); if (v) u.voice = v;
+    u.lang = v ? v.lang : (lang === 'en' ? 'en-US' : 'ko-KR');
+    u.rate = lang === 'en' ? cfg.rate : Math.min(1.4, cfg.rate + 0.15);
+    let done = false, started = false;
+    const t0 = Date.now();
+    const finish = ok => { if (done) return; done = true; clearInterval(poll); res(ok && token === runToken); };
+    u.onstart = () => { started = true; };
+    u.onend = () => finish(true);
+    u.onerror = () => finish(false);
+    speechSynthesis.speak(u);
+    // 안드로이드에서 onend가 가끔 안 오는 문제 대비
+    const poll = setInterval(() => {
+      if (token !== runToken){ speechSynthesis.cancel(); finish(false); return; }
+      if (speechSynthesis.speaking) started = true;
+      else if (started || Date.now() - t0 > 5000) finish(true);
+    }, 300);
+  });
+}
+
+// 한국어 답변 속 영어 단어는 영어 목소리로 읽기
+async function speakMixed(text, token){
+  const parts = text.match(/[A-Za-z][A-Za-z0-9'’\- ]*[A-Za-z0-9]|[A-Za-z]|[^A-Za-z]+/g) || [];
+  const runs = [];
+  for (const p of parts){
+    const isEn = /^[A-Za-z]/.test(p) && p.replace(/[^A-Za-z]/g,'').length >= 2;
+    const lang = isEn ? 'en' : 'ko';
+    if (runs.length && runs[runs.length-1].lang === lang) runs[runs.length-1].t += p;
+    else runs.push({lang, t:p});
+  }
+  for (const r of runs){
+    if (!r.t.replace(/[\s.,!?·:;'"“”‘’()\-]/g,'')) continue;
+    if (!await speak(r.t.trim(), r.lang, token)) return false;
+  }
+  return true;
+}
+
+/* ---------- 음성 인식 ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let activeRec = null;
+function listen(ms, manual){
+  return new Promise(res => {
+    if (!SR) return res(null);
+    const r = new SR(); activeRec = r; r.manual = !!manual;
+    r.lang = 'ko-KR'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+    let fin = '', interim = '';
+    const timer = setTimeout(() => { try { r.stop(); } catch {} }, ms);
+    r.onresult = e => {
+      interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++){
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) fin += t; else interim += t;
+      }
+      $('#heard').textContent = '🎙 ' + (fin + interim);
+    };
+    r.onerror = e => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('마이크 권한이 막혀 있습니다. 주소창 왼쪽 아이콘 → 권한에서 마이크를 허용하세요.');
+    };
+    r.onend = () => { clearTimeout(timer); if (activeRec === r) activeRec = null; res((fin || interim).trim()); };
+    try { r.start(); } catch { clearTimeout(timer); activeRec = null; res(''); }
+  });
+}
+function stopListening(){ if (activeRec){ try { activeRec.abort(); } catch {} } }
+
+function parseCommand(t){
+  const s = t.replace(/\s/g,'').toLowerCase();
+  if (s.length > 14) return null;            // 긴 말은 질문으로 처리
+  if (/뭐|뜻|무슨|왜|어떻게|알려|설명|무엇|어떤|\?/.test(s)) return null;
+  if (/이전(뉴스|기사)|앞(뉴스|기사)/.test(s)) return 'prevArticle';
+  if (/다음(뉴스|기사)|넘겨|스킵|skip|next/.test(s)) return 'nextArticle';
+  if (/다음문장/.test(s)) return 'nextSentence';
+  if (/이전문장|앞문장/.test(s)) return 'prevSentence';
+  if (/멈춰|정지|그만|스톱|stop|일시정지|멈춤/.test(s)) return 'stop';
+  if (/다시|한번더|repeat|again/.test(s)) return 'repeat';
+  if (/계속|재생|이어서|시작|continue|resume|play/.test(s)) return 'resume';
+  if (/천천히|느리게|slow/.test(s)) return 'slower';
+  if (/빠르게|빨리|fast/.test(s)) return 'faster';
+  return null;
+}
+
+/* ---------- AI 호출 (Gemini / Claude) ---------- */
+const NAMES = {gemini:'Gemini', claude:'Claude'};
+const hasKey = p => p === 'google' || (p === 'gemini' ? !!cfg.geminiKey : !!cfg.claudeKey);
+
+async function claude({system, messages, max_tokens = 1024}){
+  if (!cfg.claudeKey) throw new Error('설정에서 Claude API 키를 넣어 주세요.');
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key':cfg.claudeKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({model:cfg.model, max_tokens, system, messages})
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error?.message || ('Claude 요청 실패 (HTTP ' + r.status + ')'));
+  return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+}
+
+async function gemini({system, messages}){
+  if (!cfg.geminiKey) throw new Error('설정에서 Gemini API 키를 넣어 주세요.');
+  const model = encodeURIComponent(cfg.geminiModel || 'gemini-3.8-flash');
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method:'POST',
+    headers:{'content-type':'application/json', 'x-goog-api-key':cfg.geminiKey},
+    body: JSON.stringify({
+      systemInstruction:{parts:[{text:system}]},
+      contents: messages.map(m => ({role: m.role === 'assistant' ? 'model' : 'user', parts:[{text:m.content}]}))
+    })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok){
+    const msg = j?.error?.message || ('HTTP ' + r.status);
+    throw new Error(r.status === 429 ? 'Gemini 무료 한도 초과. 잠시 뒤 다시 하거나 모델을 바꿔 보세요.' : 'Gemini 오류: ' + msg);
+  }
+  const parts = j?.candidates?.[0]?.content?.parts || [];
+  const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+  if (!text) throw new Error('Gemini가 빈 답을 보냈습니다.');
+  return text;
+}
+
+const llm = (provider, args) => provider === 'claude' ? claude(args) : gemini(args);
+
+// Google 번역 (키 없는 무료 엔드포인트, 비공식)
+async function googleTranslate(list){
+  const call = async text => {
+    const u = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=' + encodeURIComponent(text);
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('Google 번역 오류 (HTTP ' + r.status + ')');
+    const j = await r.json();
+    return (j[0] || []).map(x => x[0]).join('');
+  };
+  // 한 번에 묶어 보내고 줄 수가 안 맞으면 한 문장씩 다시
+  const joined = await call(list.join('\n'));
+  const lines = joined.split('\n').map(x => x.trim());
+  if (lines.length === list.length) return lines;
+  const out = [];
+  for (const s of list) out.push(await call(s));
+  return out;
+}
+
+const TR_SYS = 'You translate English news sentences into natural, accurate Korean for a Korean learner listening along. ' +
+  'Translate each array element on its own, keeping the exact order and count. Write proper nouns in common Korean transliteration. ' +
+  'Output ONLY a JSON array of Korean strings with the same length as the input. No commentary.';
+
+const QA_SYS = '너는 영어 뉴스를 듣고 있는 한국인 학습자의 영어 튜터다. 학습자의 영어 실력은 한국 중학생 수준이다. ' +
+  '학습자는 음성으로 질문하고, 네 답은 음성 합성으로 소리 내어 읽힌다. ' +
+  '규칙: 한국어로 2~4문장, 짧고 쉽게 답한다. 마크다운, 목록, 이모지, 발음기호를 쓰지 않는다. ' +
+  '영어 단어나 표현을 말할 때는 영어 철자 그대로 쓰고 바로 뒤에 한국어 뜻을 붙인다. ' +
+  '"이 문장", "방금", "그거"처럼 가리키는 말은 [지금 문장]이나 [직전 문장들]을 뜻한다. ' +
+  '음성 인식 오류로 질문이 어색할 수 있으니 가장 그럴듯한 뜻으로 해석한다. 확실하지 않은 사실은 확실하지 않다고 말한다.';
+
+function parseJsonArray(txt){
+  const a = txt.indexOf('['), b = txt.lastIndexOf(']');
+  if (a < 0 || b < a) return null;
+  try { const v = JSON.parse(txt.slice(a, b + 1)); return Array.isArray(v) ? v : null; } catch { return null; }
+}
+
+let keyWarned = false;
+function translateChunk(art, start){
+  if (!hasKey(cfg.trProvider)){ if (!keyWarned){ keyWarned = true; toast(NAMES[cfg.trProvider] + ' 키가 없어 번역 없이 영어만 읽습니다.'); } return Promise.resolve(); }
+  if (art.pending[start]) return art.pending[start];
+  const src = art.sentences.slice(start, start + CHUNK);
+  if (!src.length) return Promise.resolve();
+  const pr = (async () => {
+    try {
+      let arr;
+      if (cfg.trProvider === 'google') arr = await googleTranslate(src);
+      else arr = parseJsonArray(await llm(cfg.trProvider, {
+        system: TR_SYS, max_tokens: 3000,
+        messages:[{role:'user', content:`Article headline: ${art.title}\n\nSentences:\n${JSON.stringify(src)}`}]
+      }));
+      if (!arr) throw new Error('번역 결과를 읽지 못했습니다');
+      for (let j = 0; j < src.length; j++) art.ko[start + j] = arr[j] != null ? String(arr[j]) : '';
+      if (art === curArt()) { renderTranscript(); renderNow(); }
+    } catch (e) {
+      delete art.pending[start];
+      toast('번역 실패: ' + e.message);
+    }
+  })();
+  art.pending[start] = pr;
+  return pr;
+}
+async function getKo(art, i){
+  if (art.ko[i] !== undefined) return art.ko[i];
+  await translateChunk(art, Math.floor(i / CHUNK) * CHUNK);
+  return art.ko[i];
+}
+function prefetch(art, i){
+  const c = Math.floor(i / CHUNK) * CHUNK;
+  translateChunk(art, c);
+  if (i - c >= CHUNK / 2) translateChunk(art, c + CHUNK);
+}
+
+async function ask(q){
+  const a = curArt();
+  addLog('q', q);
+  setStatus('답변 생각 중…');
+  const ctx = a
+    ? `[현재 기사 제목] ${a.title}\n[직전 문장들]\n${a.sentences.slice(Math.max(0, st.sIdx - 3), st.sIdx).join('\n') || '(없음)'}\n[지금 문장] ${a.sentences[st.sIdx] || '(기사 끝)'}\n[지금 문장 번역] ${a.ko[st.sIdx] || '(아직 없음)'}`
+    : '(아직 기사를 듣고 있지 않음)';
+  const messages = [...chat.slice(-6), {role:'user', content:`${ctx}\n\n[질문] ${q}`}];
+  try {
+    const ans = (await llm(cfg.qaProvider, {system:QA_SYS, messages, max_tokens:600})).trim();
+    chat.push({role:'user', content:`[질문] ${q}`}, {role:'assistant', content:ans});
+    addLog('a', ans);
+    setStatus('');
+    const tk = ++runToken;
+    await speakMixed(ans, tk);
+  } catch (e) {
+    addLog('err', e.message);
+    setStatus('');
+  }
+}
+
+/* ---------- 뉴스 ---------- */
+function splitSentences(text){
+  text = text.replace(/\s+/g, ' ')
+             .replace(/([a-z0-9][.!?])([“‘])/g, '$1 $2')                // 문단이 붙어서 오는 경우
+             .replace(/([a-z0-9][.!?]['"”’]?)([A-Z])/g, '$1 $2')
+             .trim();
+  let raw = [];
+  if (window.Intl && Intl.Segmenter){
+    for (const s of new Intl.Segmenter('en', {granularity:'sentence'}).segment(text)) raw.push(s.segment.trim());
+  } else {
+    raw = text.match(/[^.!?]+[.!?]+['"”’]*|[^.!?]+$/g) || [text];
+  }
+  const ABBR = /^(Mr|Mrs|Ms|Dr|St|Sen|Rep|Gov|Gen|Prof|Jr|Sr|Inc|Co|Corp|Lt|Col|Sgt|vs|No|Mt|Rev)\.$/;
+  const out = [];
+  for (const s of raw.map(x => x.trim()).filter(Boolean)){
+    const prev = out[out.length - 1];
+    if (prev && (s.length < 15 || ABBR.test(prev.split(' ').pop()))) out[out.length - 1] = prev + ' ' + s;
+    else out.push(s);
+  }
+  return out;
+}
+
+async function fetchPage(date, page){
+  const p = new URLSearchParams({
+    'from-date':date, 'to-date':date, 'tag':'type/article', 'page-size':'20', 'page':String(page),
+    'order-by':'newest', 'show-fields':'bodyText', 'api-key':cfg.guardianKey || 'test'
+  });
+  if (st.section) p.set('section', st.section);
+  setStatus('기사 목록을 불러오는 중…');
+  try {
+    const r = await fetch('https://content.guardianapis.com/search?' + p);
+    const j = await r.json().catch(() => ({}));
+    const resp = j.response || {};
+    if (!r.ok || resp.status !== 'ok') throw new Error(resp.message || j.message || ('HTTP ' + r.status));
+    st.pages = resp.pages || 1;
+    setStatus('');
+    return (resp.results || [])
+      .filter(x => (x.fields && x.fields.bodyText || '').length > 400)
+      .map(x => ({id:x.id, title:x.webTitle, section:x.sectionName, url:x.webUrl, body:x.fields.bodyText}));
+  } catch (e) {
+    setStatus('');
+    toast('뉴스를 불러오지 못했습니다: ' + e.message + (cfg.guardianKey === 'test' ? ' (test 키 제한일 수 있어요)' : ''));
+    return null;
+  }
+}
+
+function prepArticle(a){
+  if (a.sentences) return a;
+  a.sentences = [a.title, ...splitSentences(a.body)];
+  a.ko = new Array(a.sentences.length);
+  a.pending = {};
+  return a;
+}
+const curArt = () => st.articles[st.aIdx];
+
+// 현재 aIdx의 기사를 확보 (부족하면 다음 페이지, 그 다음엔 하루 전 날짜)
+async function ensureArticle(token){
+  let tries = 0;
+  while (st.aIdx >= st.articles.length){
+    if (++tries > 8) { toast('더 불러올 기사가 없습니다.'); return null; }
+    if (st.page < st.pages) st.page++;
+    else {
+      st.date = addDays(st.date, -1); st.page = 1;
+      toast(st.date + ' 기사로 넘어갑니다');
+    }
+    const list = await fetchPage(st.date, st.page);
+    if (token !== undefined && token !== runToken) return null;
+    if (list === null) return null;
+    st.articles.push(...list);
+  }
+  return prepArticle(curArt());
+}
+
+/* ---------- 화면 ---------- */
+function renderNow(){
+  const a = curArt();
+  if (!a || !a.sentences) return;
+  $('#nowCard').hidden = false; $('#trCard').hidden = false;
+  $('#mSection').textContent = a.section || 'News';
+  $('#mDate').textContent = st.date;
+  $('#mPos').textContent = `기사 ${st.aIdx + 1} · 문장 ${Math.min(st.sIdx + 1, a.sentences.length)}/${a.sentences.length}`;
+  $('#mTitle').textContent = a.title; $('#mTitle').href = a.url;
+  $('#mBar').style.width = (100 * Math.min(st.sIdx + 1, a.sentences.length) / a.sentences.length) + '%';
+  $('#curEn').textContent = a.sentences[st.sIdx] || '';
+  const ko = a.ko[st.sIdx], ko$ = $('#curKo');
+  if (ko !== undefined){ ko$.textContent = ko; ko$.classList.remove('wait'); }
+  else { ko$.textContent = hasKey(cfg.trProvider) ? '번역 중…' : '번역하려면 설정에서 ' + NAMES[cfg.trProvider] + ' API 키를 넣어 주세요.'; ko$.classList.add('wait'); }
+  document.querySelectorAll('#tr li').forEach((li, i) => {
+    li.classList.toggle('cur', i === st.sIdx);
+    li.classList.toggle('done', i < st.sIdx);
+  });
+  const cur = $('#tr li.cur');
+  if (cur && $('#trCard').open) cur.scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+let trFor = null;
+function renderTranscript(){
+  const a = curArt(); if (!a || !a.sentences) return;
+  const ol = $('#tr');
+  if (trFor !== a){
+    trFor = a; ol.innerHTML = '';
+    a.sentences.forEach((s, i) => {
+      const li = document.createElement('li'); li.dataset.i = i;
+      const e = document.createElement('span'); e.className = 'e'; e.textContent = s;
+      const k = document.createElement('span'); k.className = 'k';
+      li.append(e, k); ol.appendChild(li);
+    });
+  }
+  ol.querySelectorAll('li').forEach((li, i) => { li.querySelector('.k').textContent = a.ko[i] || ''; });
+}
+function renderControls(){
+  document.body.classList.toggle('playing', st.playing);
+  $('#airLabel').textContent = document.body.classList.contains('listening') ? 'Listening' : (st.playing ? 'On air' : 'Standby');
+  $('#playLabel').textContent = st.playing ? '일시정지' : '재생';
+  $('#icoPlay').innerHTML = st.playing ? '<path d="M7 5h4v14H7zm6 0h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+  const has = st.articles.length > 0;
+  ['#btnPrev','#btnNext','#btnNextArt','#btnPlay'].forEach(id => $(id).disabled = !has);
+}
+function savePos(){
+  const a = curArt(); if (!a) return;
+  LS.set('nl.pos', {date:st.date, section:st.section, page:st.page, id:a.id, sIdx:st.sIdx, title:a.title});
+}
+
+/* ---------- 재생 흐름 ---------- */
+let wakeLock = null;
+async function keepAwake(){
+  try { if ('wakeLock' in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.playing) keepAwake(); });
+
+function interrupt(){ runToken++; try { speechSynthesis.cancel(); } catch {} stopListening(); }
+function pause(){ st.playing = false; st.resumeAfter = false; interrupt(); renderControls(); setStatus(''); }
+function play(){
+  if (!st.articles.length) return;
+  st.playing = true; renderControls(); keepAwake();
+  const token = ++runToken;
+  loop(token);
+}
+
+async function loop(token){
+  while (st.playing && token === runToken){
+    const art = await ensureArticle(token);
+    if (token !== runToken) return;
+    if (!art){ pause(); return; }
+    if (st.sIdx >= art.sentences.length){ moveArticle(1); continue; }
+    renderTranscript(); renderNow(); savePos();
+    prefetch(art, st.sIdx);
+
+    if (!await speak(art.sentences[st.sIdx], 'en', token)) return;
+
+    if (cfg.readKo && hasKey(cfg.trProvider)){
+      if (art.ko[st.sIdx] === undefined) setStatus('번역 기다리는 중…');
+      const ko = await getKo(art, st.sIdx);
+      setStatus('');
+      if (token !== runToken) return;
+      renderNow();
+      if (ko && !await speak(ko, 'ko', token)) return;
+    }
+
+    if (cfg.handsFree && SR){
+      setListening(true);
+      const heard = await listen(2500, false);
+      setListening(false);
+      if (token !== runToken) return;
+      if (heard){
+        const cmd = parseCommand(heard);
+        if (cmd !== 'repeat') st.sIdx++;
+        st.playing = false; st.resumeAfter = true; renderControls();
+        await handleUtterance(heard);
+        return;
+      }
+    }
+    st.sIdx++;
+  }
+}
+
+function moveArticle(d){
+  st.aIdx = Math.max(0, st.aIdx + d);
+  st.sIdx = 0; chat = [];
+}
+function setListening(on){ document.body.classList.toggle('listening', on); renderControls(); }
+
+async function runCommand(cmd){
+  const resume = st.resumeAfter; st.resumeAfter = false;
+  switch (cmd){
+    case 'nextArticle': moveArticle(1); toast('다음 뉴스'); return play();
+    case 'prevArticle': moveArticle(-1); return play();
+    case 'nextSentence': st.sIdx++; return play();
+    case 'prevSentence': st.sIdx = Math.max(0, st.sIdx - 1); return play();
+    case 'repeat': return play();
+    case 'resume': return play();
+    case 'stop': pause(); toast('멈췄습니다'); return;
+    case 'slower': cfg.rate = Math.max(0.6, +(cfg.rate - 0.1).toFixed(2)); saveCfg(); toast('속도 ' + cfg.rate); break;
+    case 'faster': cfg.rate = Math.min(1.3, +(cfg.rate + 0.1).toFixed(2)); saveCfg(); toast('속도 ' + cfg.rate); break;
+  }
+  if (resume) play();
+}
+
+async function handleUtterance(text){
+  const t = (text || '').trim();
+  if (!t){ if (st.resumeAfter){ st.resumeAfter = false; play(); } return; }
+  const cmd = parseCommand(t);
+  if (cmd){ $('#heard').textContent = '명령: ' + t; return runCommand(cmd); }
+  await ask(t);
+  if (st.resumeAfter){ st.resumeAfter = false; play(); }
+}
+
+/* ---------- 버튼 ---------- */
+async function onMic(){
+  if (activeRec && activeRec.manual){ try { activeRec.stop(); } catch {} return; }
+  if (!SR){ toast('이 브라우저는 음성 인식을 지원하지 않습니다. 안드로이드 Chrome에서 여세요.'); return; }
+  const wasPlaying = st.playing || st.resumeAfter;
+  st.playing = false; interrupt();
+  st.resumeAfter = wasPlaying;
+  setListening(true);
+  $('#heard').textContent = '🎙 듣는 중… (다시 누르면 끝)';
+  const text = await listen(9000, true);
+  setListening(false);
+  await handleUtterance(text);
+}
+$('#btnMic').addEventListener('click', onMic);
+$('#btnPlay').addEventListener('click', () => { st.playing ? pause() : play(); });
+$('#btnNext').addEventListener('click', () => { const was = st.playing; interrupt(); st.sIdx++; was ? play() : renderNow(); });
+$('#btnPrev').addEventListener('click', () => { const was = st.playing; interrupt(); st.sIdx = Math.max(0, st.sIdx - 1); was ? play() : renderNow(); });
+$('#btnNextArt').addEventListener('click', async () => {
+  interrupt(); moveArticle(1); st.playing = true; play();
+});
+$('#tr').addEventListener('click', e => {
+  const li = e.target.closest('li'); if (!li) return;
+  interrupt(); st.sIdx = +li.dataset.i; play();
+});
+$('#askForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = $('#askIn').value.trim(); if (!q) return;
+  $('#askIn').value = '';
+  const was = st.playing; st.playing = false; interrupt(); st.resumeAfter = was;
+  await handleUtterance(q);
+});
+
+async function startSession(date, section, page, findId, sIdx){
+  interrupt();
+  st.date = date; st.section = section; st.page = page; st.pages = page;
+  st.articles = []; st.aIdx = 0; st.sIdx = 0; chat = []; trFor = null;
+  $('#btnStart').disabled = true;
+  const list = await fetchPage(date, page);
+  $('#btnStart').disabled = false;
+  if (list === null) return;
+  st.articles = list;
+  if (findId){
+    const i = list.findIndex(a => a.id === findId);
+    if (i >= 0){ st.aIdx = i; st.sIdx = sIdx || 0; }
+  }
+  if (!list.length){ toast('그 날짜에 기사가 없어 하루 전으로 찾습니다.'); }
+  $('#startCard').hidden = true; $('#btnDate').hidden = false;
+  play();
+}
+$('#btnStart').addEventListener('click', () => {
+  // 사용자 터치 안에서 음성 출력을 한 번 열어 둠 (모바일 자동재생 제한 대비)
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch {}
+  startSession($('#inDate').value || today(), $('#inSection').value, 1);
+});
+$('#btnResume').addEventListener('click', () => {
+  const p = LS.get('nl.pos', null); if (!p) return;
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch {}
+  startSession(p.date, p.section || '', p.page || 1, p.id, p.sIdx);
+});
+$('#btnDate').addEventListener('click', () => { pause(); $('#startCard').hidden = false; window.scrollTo({top:0, behavior:'smooth'}); });
+
+/* ---------- 설정 창 ---------- */
+$('#btnSettings').addEventListener('click', () => {
+  $('#sTr').value = cfg.trProvider; $('#sQa').value = cfg.qaProvider;
+  $('#sGemini').value = cfg.geminiKey; $('#sGeminiModel').value = cfg.geminiModel;
+  $('#sClaude').value = cfg.claudeKey; $('#sModel').value = cfg.model; $('#sGuardian').value = cfg.guardianKey;
+  $('#sVoice').value = cfg.enVoice; $('#sRate').value = cfg.rate; $('#rateVal').textContent = cfg.rate;
+  $('#sKo').checked = cfg.readKo; $('#sHands').checked = cfg.handsFree;
+  $('#dlg').showModal();
+});
+$('#sRate').addEventListener('input', e => { $('#rateVal').textContent = e.target.value; });
+$('#setForm').addEventListener('submit', () => {
+  cfg.trProvider = $('#sTr').value; cfg.qaProvider = $('#sQa').value;
+  cfg.geminiKey = $('#sGemini').value.trim();
+  cfg.geminiModel = $('#sGeminiModel').value.trim() || 'gemini-3.8-flash';
+  keyWarned = false;
+  cfg.claudeKey = $('#sClaude').value.trim();
+  cfg.model = $('#sModel').value.trim() || 'claude-haiku-5-5';
+  cfg.guardianKey = $('#sGuardian').value.trim() || 'test';
+  cfg.enVoice = $('#sVoice').value; cfg.rate = +$('#sRate').value;
+  cfg.readKo = $('#sKo').checked; cfg.handsFree = $('#sHands').checked;
+  saveCfg(); toast('저장했습니다'); renderNow();
+});
+
+/* ---------- 시작 ---------- */
+$('#inDate').max = today();
+$('#inDate').value = addDays(today(), -1);
+const pos = LS.get('nl.pos', null);
+if (pos){ $('#btnResume').hidden = false; $('#btnResume').textContent = '이어 듣기 · ' + pos.date; }
+renderControls();
+if (!hasKey(cfg.qaProvider)) setTimeout(() => toast('질문 답변을 쓰려면 설정에서 ' + NAMES[cfg.qaProvider] + ' API 키를 넣어 주세요.'), 600);
+
+// 테스트용 노출
+window.__nl = {splitSentences, parseCommand, parseJsonArray};
+})();
+</script>
+</body>
+</html>
